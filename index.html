@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VideoUniq — уникализатор видео</title>
+  <style>
+    /* ── Token system ── */
+    :root {
+      --neutral-0:  oklch(14% 0.005 260);
+      --neutral-1:  oklch(18% 0.008 260);
+      --neutral-2:  oklch(24% 0.010 260);
+      --neutral-3:  oklch(32% 0.012 260);
+      --neutral-4:  oklch(44% 0.012 260);
+      --neutral-5:  oklch(58% 0.010 260);
+      --neutral-6:  oklch(72% 0.008 260);
+      --neutral-7:  oklch(84% 0.006 260);
+      --neutral-8:  oklch(92% 0.004 260);
+      --neutral-9:  oklch(97% 0.002 260);
+
+      --accent-h:   280;
+      --accent-dim: oklch(42% 0.22 var(--accent-h));
+      --accent:     oklch(58% 0.26 var(--accent-h));
+      --accent-lit: oklch(72% 0.20 var(--accent-h));
+      --accent-bg:  oklch(22% 0.08 var(--accent-h));
+
+      --success: oklch(62% 0.18 145);
+      --warning: oklch(72% 0.18  75);
+      --danger:  oklch(60% 0.22  25);
+
+      --surface:   var(--neutral-1);
+      --raised:    var(--neutral-2);
+      --border:    var(--neutral-3);
+      --muted:     var(--neutral-5);
+      --body:      var(--neutral-8);
+      --heading:   var(--neutral-9);
+
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+
+      --shadow-raised: 0 1px 3px oklch(0% 0 0 / .35), 0 0 0 1px var(--border);
+      --shadow-float:  0 8px 32px oklch(0% 0 0 / .55), 0 0 0 1px var(--border);
+
+      --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;
+      --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+
+      --font: "Inter", system-ui, -apple-system, sans-serif;
+      --mono: "JetBrains Mono", "Fira Code", monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--neutral-0);
+      color: var(--body);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Layout ── */
+    .page {
+      width: 100%;
+      max-width: 720px;
+      padding: var(--sp-6) var(--sp-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-6);
+    }
+
+    /* ── Header ── */
+    .header { text-align: center; }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--heading);
+      letter-spacing: -.4px;
+      margin-bottom: var(--sp-2);
+    }
+
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: var(--accent);
+      border-radius: var(--radius-sm);
+      display: grid; place-items: center;
+      font-size: 18px;
+    }
+
+    .logo span { color: var(--accent-lit); }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-raised);
+      padding: var(--sp-6);
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin-bottom: var(--sp-4);
+    }
+
+    /* ── Drop zone ── */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--sp-7) var(--sp-5);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease;
+      position: relative;
+    }
+
+    .dropzone:hover,
+    .dropzone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+
+    .dropzone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+
+    .dz-icon { font-size: 40px; margin-bottom: var(--sp-3); }
+
+    .dz-label {
+      font-size: 15px; font-weight: 600;
+      color: var(--heading); margin-bottom: var(--sp-1);
+    }
+
+    .dz-hint { font-size: 13px; color: var(--muted); }
+
+    .dz-hint strong { color: var(--accent-lit); }
+
+    /* ── File pill ── */
+    .file-pill {
+      display: none;
+      align-items: center;
+      gap: var(--sp-3);
+      background: var(--raised);
+      border-radius: var(--radius-md);
+      padding: var(--sp-3) var(--sp-4);
+      margin-top: var(--sp-4);
+    }
+
+    .file-pill.visible { display: flex; }
+
+    .file-pill-icon { font-size: 24px; flex-shrink: 0; }
+
+    .file-pill-info { flex: 1; min-width: 0; }
+
+    .file-pill-name {
+      font-weight: 600; color: var(--heading);
+      font-size: 14px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .file-pill-size { font-size: 12px; color: var(--muted); }
+
+    .btn-remove {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 18px; padding: var(--sp-1);
+      border-radius: var(--radius-sm);
+      transition: color 120ms ease, background 120ms ease;
+      flex-shrink: 0;
+    }
+    .btn-remove:hover { color: var(--danger); background: oklch(22% 0.04 25); }
+
+    /* ── Options grid ── */
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--sp-3);
+    }
+
+    @media (max-width: 520px) { .options-grid { grid-template-columns: 1fr; } }
+
+    .option-toggle {
+      background: var(--raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: var(--sp-3) var(--sp-4);
+      cursor: pointer;
+      display: flex; align-items: flex-start; gap: var(--sp-3);
+      transition: border-color 140ms ease, background 140ms ease;
+      text-align: left;
+      user-select: none;
+    }
+
+    .option-toggle:hover { border-color: var(--accent-dim); }
+
+    .option-toggle.active {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+
+    .opt-check {
+      width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px;
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      display: grid; place-items: center;
+      transition: background 140ms ease, border-color 140ms ease;
+    }
+
+    .option-toggle.active .opt-check {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .opt-check::after {
+      content: "✓";
+      font-size: 11px; font-weight: 700;
+      color: white;
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+
+    .option-toggle.active .opt-check::after { opacity: 1; }
+
+    .opt-body { flex: 1; }
+
+    .opt-label {
+      font-size: 14px; font-weight: 600;
+      color: var(--heading); margin-bottom: 2px;
+    }
+
+    .opt-desc { font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+    /* ── Strength slider ── */
+    .slider-row {
+      display: flex; align-items: center; gap: var(--sp-3);
+    }
+
+    .slider-label {
+      font-size: 13px; color: var(--muted); white-space: nowrap;
+    }
+
+    .slider-value {
+      font-size: 13px; font-weight: 600; color: var(--accent-lit);
+      font-family: var(--mono);
+      min-width: 32px; text-align: right;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      flex: 1; height: 4px;
+      background: var(--border);
+      border-radius: 2px; cursor: pointer;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      background: var(--accent);
+      border-radius: 50%;
+      transition: background 120ms ease;
+    }
+
+    input[type="range"]:hover::-webkit-slider-thumb { background: var(--accent-lit); }
+
+    input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+    /* ── Primary button ── */
+    .btn-primary {
+      width: 100%;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 14px var(--sp-5);
+      font-size: 15px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
+      transition: background 140ms ease, opacity 140ms ease, transform 80ms ease;
+    }
+
+    .btn-primary:hover:not(:disabled) { background: var(--accent-lit); }
+    .btn-primary:active:not(:disabled) { transform: scale(.99); }
+
+    .btn-primary:disabled {
+      opacity: .45; cursor: not-allowed;
+    }
+
+    .btn-primary:focus-visible {
+      outline: 2px solid var(--accent-lit); outline-offset: 3px;
+    }
+
+    /* ── Progress ── */
+    .progress-wrap { display: none; flex-direction: column; gap: var(--sp-2); }
+    .progress-wrap.visible { display: flex; }
+
+    .progress-label {
+      display: flex; justify-content: space-between;
+      font-size: 13px;
+    }
+    .progress-label-text { color: var(--muted); }
+    .progress-label-pct { font-family: var(--mono); color: var(--accent-lit); font-size: 12px; }
+
+    .progress-bar {
+      height: 6px; background: var(--raised); border-radius: 3px; overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+      border-radius: 3px;
+      transition: width 300ms ease;
+    }
+
+    /* ── Result ── */
+    .result-card {
+      display: none;
+      background: oklch(20% 0.06 145 / .25);
+      border: 1px solid oklch(62% 0.18 145 / .35);
+      border-radius: var(--radius-md);
+      padding: var(--sp-4) var(--sp-5);
+      gap: var(--sp-4);
+      align-items: center;
+    }
+
+    .result-card.visible { display: flex; }
+
+    .result-icon { font-size: 28px; flex-shrink: 0; }
+
+    .result-body { flex: 1; }
+
+    .result-title {
+      font-size: 15px; font-weight: 700;
+      color: var(--success); margin-bottom: 2px;
+    }
+
+    .result-meta { font-size: 12px; color: var(--muted); }
+
+    .btn-download {
+      background: var(--success);
+      color: oklch(12% 0.03 145);
+      border: none; border-radius: var(--radius-sm);
+      padding: var(--sp-2) var(--sp-4);
+      font-size: 13px; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+      transition: opacity 140ms ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-download:hover { opacity: .85; }
+
+    /* ── Error ── */
+    .error-msg {
+      display: none;
+      background: oklch(20% 0.06 25 / .3);
+      border: 1px solid oklch(60% 0.22 25 / .4);
+      border-radius: var(--radius-md);
+      padding: var(--sp-3) var(--sp-4);
+      font-size: 13px; color: var(--danger);
+      gap: var(--sp-2);
+      align-items: flex-start;
+    }
+    .error-msg.visible { display: flex; }
+
+    /* ── Info footer ── */
+    .how-it-works {
+      font-size: 13px; color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .how-it-works ul {
+      padding-left: var(--sp-4);
+      display: flex; flex-direction: column; gap: 2px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: var(--accent-bg);
+      color: var(--accent-lit);
+      border: 1px solid oklch(58% 0.26 var(--accent-h) / .3);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px; font-weight: 600; font-family: var(--mono);
+    }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid var(--border); }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid oklch(100% 0 0 / .25);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    .spinner.visible { display: block; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">🎬</div>
+      Video<span>Uniq</span>
+    </div>
+    <p class="tagline">Сделай видео уникальным для TikTok, Instagram и YouTube — без потери качества</p>
+  </header>
+
+  <!-- Upload -->
+  <section class="card">
+    <p class="card-title">1. Загрузи видео</p>
+
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept="video/*" />
+      <div class="dz-icon">📁</div>
+      <div class="dz-label">Перетащи видео сюда</div>
+      <div class="dz-hint">или <strong>нажми для выбора файла</strong> · MP4, MOV, AVI, MKV · до 500 МБ</div>
+    </div>
+
+    <div class="file-pill" id="filePill">
+      <div class="file-pill-icon">🎞️</div>
+      <div class="file-pill-info">
+        <div class="file-pill-name" id="pillName">—</div>
+        <div class="file-pill-size" id="pillSize">—</div>
+      </div>
+      <button class="btn-remove" id="btnRemove" aria-label="Удалить файл">✕</button>
+    </div>
+  </section>
+
+  <!-- Options -->
+  <section class="card">
+    <p class="card-title">2. Настрой уникализацию</p>
+
+    <div class="options-grid" id="optionsGrid">
+      <button class="option-toggle active" data-opt="metadata" aria-pressed="true">
+        <div class="opt-check"></div>
+        <div class="opt-body">
+          <div class="opt-label">🏷️ Метаданные</div>
+          <div class="opt-desc">Сброс EXIF и encoder-тегов</div>
+        </div>
+      </button>
+      <button class="option-toggle active" data-opt="reencode" aria-pressed="true">
+        <div class="opt-check"></div>
+        <div class="opt-body">
+          <div class="opt-label">🔄 Ре-энкод</div>
+          <div class="opt-desc">Новый хэш файла через ffmpeg</div>
+        </div>
+      </button>
+      <button class="option-toggle active" data-opt="visual" aria-pressed="true">
+        <div class="opt-check"></div>
+        <div class="opt-body">
+          <div class="opt-label">🎨 Видео-фильтр</div>
+          <div class="opt-desc">Едва заметный сдвиг яркости</div>
+        </div>
+      </button>
+      <button class="option-toggle active" data-opt="audio" aria-pressed="true">
+        <div class="opt-check"></div>
+        <div class="opt-body">
+          <div class="opt-label">🔊 Аудио-сдвиг</div>
+          <div class="opt-desc">Питч ±1–2 цента, неслышимо</div>
+        </div>
+      </button>
+      <button class="option-toggle" data-opt="flip" aria-pressed="false">
+        <div class="opt-check"></div>
+        <div class="opt-body">
+          <div class="opt-label">↔️ Зеркало</div>
+          <div class="opt-desc">Горизонтальный flip</div>
+        </div>
+      </button>
+      <button class="option-toggle" data-opt="crop" aria-pressed="false">
+        <div class="opt-check"></div>
+        <div class="opt-body">
+          <div class="opt-label">✂️ Кроп</div>
+          <div class="opt-desc">Zoom 1–3%, незаметный</div>
+        </div>
+      </button>
+    </div>
+
+    <div style="margin-top: var(--sp-5);">
+      <p class="card-title" style="margin-bottom: var(--sp-3);">Сила изменений</p>
+      <div class="slider-row">
+        <span class="slider-label">Минимально</span>
+        <input type="range" id="strength" min="1" max="5" value="3" />
+        <span class="slider-label">Максимально</span>
+        <span class="slider-value" id="strengthVal">3</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Process -->
+  <section class="card">
+    <p class="card-title">3. Обработка</p>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label">
+        <span class="progress-label-text" id="progressText">Подготовка…</span>
+        <span class="progress-label-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="error-msg" id="errorMsg">
+      <span>⚠️</span>
+      <span id="errorText">Произошла ошибка</span>
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <div class="result-icon">✅</div>
+      <div class="result-body">
+        <div class="result-title">Видео готово!</div>
+        <div class="result-meta" id="resultMeta">—</div>
+      </div>
+      <a class="btn-download" id="btnDownload" download>⬇ Скачать</a>
+    </div>
+
+    <button class="btn-primary" id="btnProcess" disabled>
+      <div class="spinner" id="btnSpinner"></div>
+      <span id="btnLabel">Сначала выбери файл</span>
+    </button>
+  </section>
+
+  <!-- How it works -->
+  <section class="card">
+    <p class="card-title">Как это работает</p>
+    <div class="how-it-works">
+      <p style="margin-bottom: var(--sp-3);">
+        Платформы используют перцептивный fingerprint и хэш файла для обнаружения дублей.
+        VideoUniq делает следующее:
+      </p>
+      <ul>
+        <li>Ре-энкодирует через <span class="badge">ffmpeg</span> — новый хэш гарантирован</li>
+        <li>Чистит метаданные <span class="badge">encoder</span>, <span class="badge">creation_time</span> и т.д.</li>
+        <li>Применяет микро-фильтры: яркость, контраст, насыщенность (±0.5–2%)</li>
+        <li>Сдвигает аудио-питч на ±1–2 цента — ниже порога восприятия</li>
+        <li>Опционально: зеркальный flip и незначительный zoom</li>
+      </ul>
+      <p style="margin-top: var(--sp-3); color: oklch(72% 0.18 75);">
+        ⚡ Обработка происходит на сервере через ffmpeg — оригинальный файл не изменяется.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+const dropzone   = document.getElementById('dropzone');
+const fileInput  = document.getElementById('fileInput');
+const filePill   = document.getElementById('filePill');
+const pillName   = document.getElementById('pillName');
+const pillSize   = document.getElementById('pillSize');
+const btnRemove  = document.getElementById('btnRemove');
+const btnProcess = document.getElementById('btnProcess');
+const btnLabel   = document.getElementById('btnLabel');
+const btnSpinner = document.getElementById('btnSpinner');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
+const progressPct  = document.getElementById('progressPct');
+const resultCard   = document.getElementById('resultCard');
+const resultMeta   = document.getElementById('resultMeta');
+const btnDownload  = document.getElementById('btnDownload');
+const errorMsg     = document.getElementById('errorMsg');
+const errorText    = document.getElementById('errorText');
+const strengthSlider = document.getElementById('strength');
+const strengthVal    = document.getElementById('strengthVal');
+
+let selectedFile = null;
+
+// ── Drag-and-drop ──
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) setFile(f);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) setFile(fileInput.files[0]);
+});
+
+function setFile(f) {
+  selectedFile = f;
+  pillName.textContent = f.name;
+  pillSize.textContent = formatBytes(f.size);
+  filePill.classList.add('visible');
+  btnProcess.disabled = false;
+  btnLabel.textContent = 'Уникализировать 🚀';
+  hideStatus();
+}
+
+btnRemove.addEventListener('click', () => {
+  selectedFile = null;
+  fileInput.value = '';
+  filePill.classList.remove('visible');
+  btnProcess.disabled = true;
+  btnLabel.textContent = 'Сначала выбери файл';
+  hideStatus();
+});
+
+// ── Options ──
+document.querySelectorAll('.option-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const active = btn.classList.toggle('active');
+    btn.setAttribute('aria-pressed', active.toString());
+  });
+});
+
+// ── Strength ──
+strengthSlider.addEventListener('input', () => {
+  strengthVal.textContent = strengthSlider.value;
+});
+
+// ── Process ──
+btnProcess.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  const opts = {};
+  document.querySelectorAll('.option-toggle').forEach(btn => {
+    opts[btn.dataset.opt] = btn.classList.contains('active');
+  });
+  opts.strength = parseInt(strengthSlider.value);
+
+  hideStatus();
+  setProcessing(true);
+  showProgress(0, 'Загрузка файла…');
+
+  const formData = new FormData();
+  formData.append('video', selectedFile);
+  formData.append('options', JSON.stringify(opts));
+
+  try {
+    // Simulate upload progress
+    const fakeUpload = fakeProgress(0, 30, 'Загрузка файла…', 800);
+
+    const resp = await fetch('/process', { method: 'POST', body: formData });
+
+    clearInterval(fakeUpload);
+    showProgress(35, 'Обработка через ffmpeg…');
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'Неизвестная ошибка' }));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+
+    // Simulate processing progress while waiting (server-sent progress not implemented yet)
+    const fakeProc = fakeProgress(35, 90, 'Применяю фильтры…', 2000);
+
+    const blob = await resp.blob();
+    clearInterval(fakeProc);
+
+    showProgress(100, 'Готово!');
+
+    const url = URL.createObjectURL(blob);
+    const origExt = selectedFile.name.split('.').pop();
+    btnDownload.href = url;
+    btnDownload.download = `uniq_${selectedFile.name.replace(/\.[^.]+$/, '')}.${origExt}`;
+
+    const savings = Math.round((1 - blob.size / selectedFile.size) * 100);
+    resultMeta.textContent = `${formatBytes(blob.size)} · ${savings > 0 ? `на ${savings}% меньше оригинала` : 'размер близок к оригиналу'}`;
+
+    setTimeout(() => {
+      progressWrap.classList.remove('visible');
+      resultCard.classList.add('visible');
+    }, 400);
+
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    setProcessing(false);
+  }
+});
+
+// ── Helpers ──
+function setProcessing(on) {
+  btnProcess.disabled = on;
+  btnSpinner.classList.toggle('visible', on);
+  btnLabel.textContent = on ? 'Обрабатываю…' : 'Уникализировать 🚀';
+}
+
+function showProgress(pct, label) {
+  progressWrap.classList.add('visible');
+  progressFill.style.width = pct + '%';
+  progressText.textContent = label;
+  progressPct.textContent  = pct + '%';
+}
+
+function fakeProgress(from, to, label, ms) {
+  let cur = from;
+  const step = (to - from) / (ms / 80);
+  return setInterval(() => {
+    cur = Math.min(cur + step, to);
+    showProgress(Math.round(cur), label);
+  }, 80);
+}
+
+function showError(msg) {
+  errorText.textContent = msg;
+  errorMsg.classList.add('visible');
+  progressWrap.classList.remove('visible');
+}
+
+function hideStatus() {
+  progressWrap.classList.remove('visible');
+  resultCard.classList.remove('visible');
+  errorMsg.classList.remove('visible');
+  if (btnDownload.href.startsWith('blob:')) URL.revokeObjectURL(btnDownload.href);
+}
+
+function formatBytes(b) {
+  if (b < 1024 * 1024) return (b / 1024).toFixed(0) + ' KB';
+  return (b / 1024 / 1024).toFixed(1) + ' MB';
+}
+</script>
+</body>
+</html>
