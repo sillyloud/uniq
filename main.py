@@ -17,7 +17,9 @@ app = FastAPI(title="VideoUniq")
 async def index():
     html_path = Path(__file__).parent / "index.html"
     return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
-
+@app.head("/")
+async def index_head():
+    return HTMLResponse(content="", status_code=200)
 
 @app.post("/process")
 async def process_video(
