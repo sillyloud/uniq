@@ -663,11 +663,15 @@ btnProcess.addEventListener('click', async () => {
     clearInterval(fakeUpload);
     showProgress(35, 'Обработка через ffmpeg…');
 
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: 'Неизвестная ошибка' }));
-      throw new Error(err.error || `HTTP ${resp.status}`);
-    }
-
+  if (!resp.ok) {
+  const raw = await resp.text();
+  let msg = raw;
+  try {
+    const j = JSON.parse(raw);
+    msg = j.detail || j.error || raw;
+  } catch (e) {}
+  throw new Error(`HTTP ${resp.status} — ${String(msg).slice(0, 300)}`);
+}
     // Simulate processing progress while waiting (server-sent progress not implemented yet)
     const fakeProc = fakeProgress(35, 90, 'Применяю фильтры…', 2000);
 
