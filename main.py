@@ -38,8 +38,13 @@ async def process_video(
 
     # ── Save upload to temp file ──
     suffix = Path(video.filename or "video.mp4").suffix or ".mp4"
+       suffix = Path(video.filename or "video.mp4").suffix or ".mp4"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_in:
-        tmp_in.write(await video.read())
+        while True:
+            chunk = await video.read(1024 * 1024)
+            if not chunk:
+                break
+            tmp_in.write(chunk)
         input_path = tmp_in.name
 
     output_path = input_path.replace(suffix, f"_uniq{suffix}")
