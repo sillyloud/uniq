@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py index.html ./
 
 # Порт для веб-интерфейса
-EXPOSE 8000
+EXPOSE 10000
 
 # Запуск FastAPI через uvicorn
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}"]
